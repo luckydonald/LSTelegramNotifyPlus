@@ -13,6 +13,11 @@ function clean() {
     rm "$(calculate_zip_name)"
 }
 
+function deepclean() {
+    clean;
+    rm -rf .composer/
+}
+
 function composer() {
     docker run --rm --name composer_runner --interactive --tty \
       --volume $PWD:/app \
