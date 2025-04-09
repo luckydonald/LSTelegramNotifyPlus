@@ -186,13 +186,19 @@ class LSTelegramNotifyPlus extends PluginBase
             '/\{urlExport\}/' => $exportUrl,
             '/\{urlAttachments\}/' => $attachmentsUrl,
         ];
+        $parseMode = $this->getSurveySettings('ParseMode', $surveyId);
+        if (strtolower($parseMode ?? '') === 'html') {
+            // make sure the stuff is escaped.
+            foreach ($replacements as $key => $value) {
+                $replacements[$key] = htmlspecialchars($value, ENT_QUOTES);
+            }
+        }
         $defaultText = $this->getSurveySettings('DefaultText', $surveyId);
         $text = preg_replace(
             array_keys($replacements),
             array_values($replacements),
             $defaultText
         );
-        $parseMode = $this->getSurveySettings('ParseMode', $surveyId);
         $tgResponse = $this->sendTelegram(
             $telegram,
             $chatId,
