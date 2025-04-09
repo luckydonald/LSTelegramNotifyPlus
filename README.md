@@ -6,6 +6,12 @@ The Limesurvey LSTelegramNotify plugin allows you to send after Survey event to 
 
 ## Plugin Installation
 
+### By zipfile
+
+- Download the zip of [lates release](https://github.com/librecodecoop/LSNextcloud/releases/latest)
+- Install the plugin in `Settings` > `Plugin Manager` > `Install zip`
+
+### By repository
 - Copy the LSTelegramNotify folder to the Limesurvey "plugins" directory.
 - Go to `LSTelegramNotify` folder
 - Run `composer install` inside of folder `LSTelegramNotify`
