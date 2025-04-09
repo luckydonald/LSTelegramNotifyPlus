@@ -26,6 +26,8 @@ class LSTelegramNotifyPlus extends PluginBase
 
     /**
      * @var string[][]
+     * @noinspection HtmlUnknownTarget
+     * @noinspection PhpIdempotentOperationInspection
      */
     protected $settings = [
         'Enable' => [
@@ -76,11 +78,17 @@ class LSTelegramNotifyPlus extends PluginBase
             'type' => 'text',
             'label' => 'Default Text',
             'default' =>
-                "<b>New Survey Completion!</b>\n" .
+                "<b>New <u>{title}</u> Survey Completion!</b>\n" .
                 "Title: <code>{title}</code>\n" .
                 "SurveyId: <code>{surveyId}</code>\n" .
                 "ResponseId: <code>{responseId}</code>\n" .
-                "PDF: <a href=\"{urlPDF}\">here</a>"
+                "<a href=\"{urlPDF}\">PDF</a>" .
+                " | <a href=\"{urlDetails}\">Overview</a>" .
+                " | <a href=\"{urlEdit}\">Answers</a>" .
+                " | <a href=\"{urlExport}\">Export</a>" .
+                " | <a href=\"{urlAttachments}\">Attachments</a>" .
+                "\n" .
+                ""
         ],
     ];
 
@@ -148,11 +156,35 @@ class LSTelegramNotifyPlus extends PluginBase
                 'id' => $responseId
             ]
         );
+        $detailsUrl = App()->createAbsoluteUrl(
+            '/responses/view',
+            [
+                'surveyid' => $surveyId,
+                'id' => $responseId
+            ]
+        );
+        $editUrl = App()->createAbsoluteUrl(
+            "/admin/dataentry/sa/editdata/subaction/edit/surveyId/$surveyId/id/$responseId/browseLang"
+        );
+        $exportUrl = App()->createAbsoluteUrl(
+            "/admin/export/sa/exportresults/surveyid/$surveyId/id/$responseId"
+        );
+        $attachmentsUrl = App()->createAbsoluteUrl(
+            "/responses/downloadfiles",
+            [
+                'surveyId' => $surveyId,
+                'responseIds' => $responseId,
+            ]
+        );
         $replacements = [
+            '/\{title\}/' => $title,
             '/\{surveyId\}/' => $surveyId,
             '/\{responseId\}/' => $responseId,
             '/\{urlPDF\}/' => $pdfUrl,
-            '/\{title\}/' => $title,
+            '/\{urlDetails\}/' => $detailsUrl,
+            '/\{urlEdit\}/' => $editUrl,
+            '/\{urlExport\}/' => $exportUrl,
+            '/\{urlAttachments\}/' => $attachmentsUrl,
         ];
         $defaultText = $this->getSurveySettings('DefaultText', $surveyId);
         $text = preg_replace(
