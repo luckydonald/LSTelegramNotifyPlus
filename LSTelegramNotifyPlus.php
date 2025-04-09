@@ -290,7 +290,11 @@ class LSTelegramNotifyPlus extends PluginBase
         }
         $response = Response::model($surveyId)->findByAttributes([
             'id' => $this->getEvent()->get('responseId')
-        ])->decrypt();
+        ]);
+        if (!$response) {
+            return;
+        }
+        $response = $response->decrypt();
         $keys = [];
         $files = [];
         $datas = [];
