@@ -97,11 +97,20 @@ class LSTelegramNotifyPlus extends PluginBase
         $this->subscribe('afterSurveyComplete');
         $this->subscribe('beforeSurveySettings');
     }
+    public function afterSurveyComplete() {
+        try {
+            $this->afterSurveyComplete2();
+        } catch (\Exception $e) {
+            // make stacktrace visible.
+            $string = $e->getMessage() .'\n'.$e->getTraceAsString();
+            throw new Exception($string);
+        }
+    }
 
     /**
      * @return void
      */
-    public function afterSurveyComplete()
+    public function afterSurveyComplete2()
     {
         $event = $this->getEvent();
         $surveyId = $event->get('surveyId');
@@ -256,7 +265,18 @@ class LSTelegramNotifyPlus extends PluginBase
         }
 
         // Send the request
-        $response = $client->post($command, $args);
+        try {
+            $response = $client->post($command, $args);
+        } catch (GuzzleRequestException $e) {
+            // shove all the details visible into the error message
+            $msg = $e->getMessage();
+            $msg .= "\n\nrequest params:\n";
+            $msg .= print_r([$command, $args], true);
+            $msg .= "\n\nrequest body:\n";
+            $msg .= $e->getRequest()->getBody()->getContents();
+            throw new \Exception($msg, 1, $e);
+        }
+
         return json_decode($response->getBody(), true);
     }
 
@@ -318,6 +338,7 @@ class LSTelegramNotifyPlus extends PluginBase
         $files = [];
         $datas = [];
         $i = 0;
+        $this->wump('$response->getFiles()', $response->getFiles());
         foreach ($response->getFiles() as $aFile) {
             $key = "attachment_{$i}";
             $i += 1;
@@ -348,10 +369,17 @@ class LSTelegramNotifyPlus extends PluginBase
             $files[$key] = $file;
             $datas[$key] = $inputMediaDocument;
         }
+        $this->wump('keys', $keys);
+        $this->wump('files', $files);
+        $this->wump('datas', $datas);
         for ($i = 0; $i < count($datas); $i += 10) {
+            $this->wump('i', $i);
             $upTo10Keys = array_slice($keys, $i, 10);
+            $this->wump('upTo10Keys', $upTo10Keys);
             $upTo10Files = array_intersect_key($files, array_flip($upTo10Keys));  // array_flip makes the value the key
+            $this->wump('upTo10Files', $upTo10Files);
             $upTo10Datas = array_values(array_intersect_key($datas, array_flip($upTo10Keys)));
+            $this->wump('upTo10Datas', $upTo10Datas);
             $this->sendTelegram(
                 $telegram,
                 $chatId,
@@ -363,6 +391,20 @@ class LSTelegramNotifyPlus extends PluginBase
                 $upTo10Files
             );
         }
+    }
+
+    private function wump($name, $var)
+    {
+        return;
+        echo "<pre>\n";
+        ob_start();
+        var_dump($var);
+        $output = ob_get_clean();
+
+        $output = "$name:\n$output";
+        $output = str_replace("\n", "<br>", $output);
+        echo $output;
+        echo "\n</pre>";
     }
 
     private function getPdfPath($surveyId, $responseId): string
