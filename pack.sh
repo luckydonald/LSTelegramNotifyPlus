@@ -4,13 +4,13 @@ BUILD_DIR=${PWD}/build/artifacts/
 ZIP_NAME="LSTelegramNotifyPlus"
 
 function calculate_zip_name() {
-  tag=$(git describe --tags --abbrev=0)
-  echo "${ZIP_NAME}_${tag}.zip"
+  version=$(awk -F'[<>]' '/<version>/{print $3; exit}' config.xml)
+  echo "${ZIP_NAME}_v${version}.zip"
 }
 
 function clean() {
     rm -rf vendor/
-    rm "${ZIP_NAME}_*.zip"
+    rm "$(calculate_zip_name)"
 }
 
 function composer() {
@@ -27,5 +27,6 @@ function pack() {
     zip $(calculate_zip_name) \
       -r "LSTelegramNotifyPlus.php" \
       -r vendor/ \
+      -r config.xml \
     ;
 }

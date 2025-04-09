@@ -1,7 +1,6 @@
 <?php
 
-use GuzzleHttp\Client;
-use Telegram\Bot\FileUpload\InputFile;
+use GuzzleHttp\Client as GuzzleClient;
 
 require_once __DIR__ . DIRECTORY_SEPARATOR . 'vendor/autoload.php';
 
@@ -32,6 +31,7 @@ class LSTelegramNotifyPlus extends PluginBase
         'Enable' => [
             'type' => 'checkbox',
             'label' => 'Enable telegram notifications',
+            'default' => true,
         ],
         'AuthToken' => [
             'type' => 'string',
@@ -52,7 +52,7 @@ class LSTelegramNotifyPlus extends PluginBase
         'ParseMode' => [
             'type' => 'select',
             'label' => 'Parse mode',
-            'options' => array('HTML' => 'HTML', 'Markdown'  => 'Markdown', 'MarkdownV2' => 'MarkdownV2'),
+            'options' => array('HTML' => 'HTML', 'Markdown'  => 'Markdown', 'MarkdownV2' => 'MarkdownV2', 'Text' => 'Text'),
             'help' => 'As the Telegram bot API <a href="https://core.telegram.org/bots/api#formatting-options" target="_blank">formatting options</a>.',
             'default' => 'HTML',
         ],
@@ -64,19 +64,19 @@ class LSTelegramNotifyPlus extends PluginBase
             'type' => 'checkbox',
             'label' => 'Check to send all answers as CSV file',
         ],
-        'SendMessage' => [
-            'type' => 'checkbox',
-            'label' => 'Check to send a text message using the default text template',
-        ],
         'SendAttachments' => [
             'type' => 'checkbox',
             'label' => 'Check to send all attachments uploaded',
+        ],
+        'SendMessage' => [
+            'type' => 'checkbox',
+            'label' => 'Check to send a text message using the default text template',
         ],
         'DefaultText' => [
             'type' => 'text',
             'label' => 'Default Text',
             'default' =>
-                "New Survey Completed!\n" .
+                "<b>New Survey Completion!</b>\n" .
                 "Title: <code>{title}</code>\n" .
                 "SurveyId: <code>{surveyId}</code>\n" .
                 "ResponseId: <code>{responseId}</code>\n" .
@@ -112,9 +112,10 @@ class LSTelegramNotifyPlus extends PluginBase
         $chatId = $this->getSurveySettings('ChatId', $surveyId);
 
         // Create a Guzzle client
-        $client = new Client([
-            'base_uri' => $baseUrl.'/bot'.$authToken.'/',
+        $client = new GuzzleClient([
+            'base_uri' => rtrim($baseUrl, '/').'/bot'.$authToken.'/'
         ]);
+
         $messageId = $this->sendMessage($surveyId, $responseId, $chatId, $client, $oSurvey->getLocalizedTitle());
         $this->sendPdf($surveyId, $responseId, $chatId, $client, $messageId);
         $this->sendCsv($surveyId, $responseId, $chatId, $client, $messageId);
@@ -134,7 +135,7 @@ class LSTelegramNotifyPlus extends PluginBase
      * @param $text
      * @return int Message ID
      */
-    public function sendMessage($surveyId, $responseId, $chatId, Client $telegram, $title)
+    public function sendMessage($surveyId, $responseId, $chatId, GuzzleClient $telegram, $title)
     {
         $sendMessage = $this->getSurveySettings('SendMessage', $surveyId);
         if (!$sendMessage) {
@@ -164,6 +165,7 @@ class LSTelegramNotifyPlus extends PluginBase
             $telegram,
             $chatId,
             null,
+            'sendMessage',
             [
                 'parse_mode' => $parseMode,
                 'text' => $text,
@@ -232,11 +234,10 @@ class LSTelegramNotifyPlus extends PluginBase
 
         // Send the request
         $response = $client->post($command, $args);
-
         return json_decode($response->getBody(), true);
     }
 
-    private function sendPdf($surveyId, $responseId, $chatId, Client $telegram, $messageId): void
+    private function sendPdf($surveyId, $responseId, $chatId, GuzzleClient $telegram, $messageId): void
     {
         $sendPdf = $this->get(
             'SendPdf',
@@ -261,7 +262,7 @@ class LSTelegramNotifyPlus extends PluginBase
         unlink($pdfPath);
     }
 
-    private function sendCsv($surveyId, $responseId, $chatId, Client $telegram, $messageId): void
+    private function sendCsv($surveyId, $responseId, $chatId, GuzzleClient $telegram, $messageId): void
     {
         $sendCsv = $this->getSurveySettings('SendCsv', $surveyId);
         if (!$sendCsv) {
@@ -281,7 +282,7 @@ class LSTelegramNotifyPlus extends PluginBase
         unlink($pdfPath);
     }
 
-    private function sendAttachments($surveyId, $responseId, $chatId, Client $telegram, $messageId): void
+    private function sendAttachments($surveyId, $responseId, $chatId, GuzzleClient $telegram, $messageId): void
     {
         $sendAttachments = $this->getSurveySettings('SendAttachments', $surveyId);
         if (!$sendAttachments) {
@@ -298,13 +299,29 @@ class LSTelegramNotifyPlus extends PluginBase
             $key = "attachment_{$i}";
             $i += 1;
             $filepath = Yii::app()->getConfig('uploaddir') . "/surveys/" . $surveyId . "/files/" . $aFile['filename'];
-            $filename = "{$surveyId}-{$responseId}_{$aFile['name']}_{$aFile['filename']}";
+            $filename = "{$surveyId}-{$responseId}_{$aFile['filename']}_{$aFile['name']}";
             $file = [$filepath, $filename];
+            $title = '';
+            if ($aFile['title'] ?? null) {
+                $title = htmlspecialchars($aFile['title']);
+                $title = "<b>{$title}</b>";
+            }
+            $comment = '';
+            if ($aFile['comment'] ?? null) {
+                $comment = htmlspecialchars($aFile['comment']);
+            }
+            $caption = "$title\n$comment";
+            $caption = trim($caption);
+
             $inputMediaDocument = [
                 'type' => 'document',
                 'media' => "attach://{$key}",
-                'caption' => $aFile['title'] ?? $aFile['comment'] ?? null, // Optional caption
+                'parse_mode' => 'html'
             ];
+            if ($caption) {
+                $inputMediaDocument['caption'] = $caption;
+            }
+            $keys[] = $key;
             $files[$key] = $file;
             $datas[$key] = $inputMediaDocument;
         }
@@ -353,6 +370,12 @@ class LSTelegramNotifyPlus extends PluginBase
             [
                 'name' => get_class($this),
                 'settings' => [
+                    'Enable' => [
+                        'type' => $this->settings['Enable']['type'],
+                        'label' => $this->settings['Enable']['label'],
+                        'default' => $this->settings['BaseUrl']['default'],
+                        'current' => $this->getSurveySettings('Enable', $surveyId, $this->settings['Enable']['default']),
+                    ],
                     'SettingsInfo' => [
                         'type' => 'info',
                         'content' => '<legend><small>Telegram settings</small></legend>'
@@ -394,15 +417,15 @@ class LSTelegramNotifyPlus extends PluginBase
                         'label' => $this->settings['SendCsv']['label'],
                         'current' => $this->getSurveySettings('SendCsv', $surveyId, $this->settings['SendCsv']['default']),
                     ],
-                    'SendMessage' => [
-                        'type' => $this->settings['SendMessage']['type'],
-                        'label' => $this->settings['SendMessage']['label'],
-                        'current' => $this->getSurveySettings('SendMessage', $surveyId, $this->settings['SendMessage']['default']),
-                    ],
                     'SendAttachments' => [
                         'type' => $this->settings['SendAttachments']['type'],
                         'label' => $this->settings['SendAttachments']['label'],
                         'current' => $this->getSurveySettings('SendAttachments', $surveyId, $this->settings['SendAttachments']['default']),
+                    ],
+                    'SendMessage' => [
+                        'type' => $this->settings['SendMessage']['type'],
+                        'label' => $this->settings['SendMessage']['label'],
+                        'current' => $this->getSurveySettings('SendMessage', $surveyId, $this->settings['SendMessage']['default']),
                     ],
                     'DefaultText' => [
                         'type' => 'text',
