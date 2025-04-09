@@ -1,6 +1,10 @@
 <?php
 
 use GuzzleHttp\Client as GuzzleClient;
+use GuzzleHttp\HandlerStack as GuzzleHandlerStack;
+use GuzzleHttp\Psr7\Request as GuzzleRequest;
+use GuzzleHttp\Psr7\Response as GuzzleResponse;
+use GuzzleHttp\Exception\RequestException as GuzzleRequestException;
 
 require_once __DIR__ . DIRECTORY_SEPARATOR . 'vendor/autoload.php';
 
@@ -111,9 +115,28 @@ class LSTelegramNotifyPlus extends PluginBase
         $authToken = $this->getSurveySettings('AuthToken', $surveyId);
         $chatId = $this->getSurveySettings('ChatId', $surveyId);
 
+        $logMiddlewareStack = $this->loggingMiddlewareStack(
+            function (GuzzleRequest $request, array $options) {
+                $this->log('Request:', json_encode([
+                    'method' => $request->getMethod(),
+                    'uri' => (string) $request->getUri(),
+                    'headers' => $request->getHeaders(),
+                    'body' => (string) $request->getBody(),
+                ]));
+            },
+            function (GuzzleResponse $response, GuzzleRequest $request, array $options) {
+                $this->log('Response:', json_encode([
+                    'status' => $response->getStatusCode(),
+                    'headers' => $response->getHeaders(),
+                    'body' => (string) $response->getBody(),
+                ]));
+            }
+        );
+
         // Create a Guzzle client
         $client = new GuzzleClient([
-            'base_uri' => rtrim($baseUrl, '/').'/bot'.$authToken.'/'
+            'base_uri' => rtrim($baseUrl, '/').'/bot'.$authToken.'/',
+            'handler' => $logMiddlewareStack
         ]);
 
         $messageId = $this->sendMessage($surveyId, $responseId, $chatId, $client, $oSurvey->getLocalizedTitle());
@@ -476,5 +499,60 @@ class LSTelegramNotifyPlus extends PluginBase
         $oExport = new ExportSurveyResultsService();
         $tempFile = $oExport->exportResponses($surveyId, $survey->language, 'csv', $oFormattingOptions, '');
         return $tempFile;
+    }
+
+    /**
+     * Method to create logging middleware already wrapped in a Stack,
+     * With two functions like the old `Middleware::tap($requestHandler, $responseHandler)` used to.
+     *
+     * ```php
+     *  $requestHandler: function (GuzzleRequest $request, array $options),
+     * $responseHandler: function (GuzzleResponse $response, GuzzleRequest $request, array $options)
+     * ```
+     */
+    private function loggingMiddlewareStack(callable $requestHandler, callable $responseHandler) {
+        $stack = GuzzleHandlerStack::create();
+        $stack->push($this->loggingMiddlewareTab($requestHandler, $responseHandler));
+        return $stack;
+    }
+
+    /**
+     * Method to create logging middleware,
+     * like the old `Middleware::tap($requestHandler, $responseHandler)` used to.
+     *
+     * ```php
+     *  $requestHandler: function (GuzzleRequest $request, array $options),
+     * $responseHandler: function (GuzzleResponse $response, GuzzleRequest $request, array $options)
+     * ```
+     */
+    private function loggingMiddlewareTab(callable $requestHandler, callable $responseHandler)
+    {
+        return function (callable $handler) use ($requestHandler, $responseHandler) {
+            return function (
+                GuzzleRequest $request, array $options
+            ) use (
+                $handler, $requestHandler, $responseHandler
+            ) {
+                $requestHandler($request, $options);
+                $this->log('Request:', [
+                    'method' => $request->getMethod(),
+                    'uri' => (string) $request->getUri(),
+                    'headers' => $request->getHeaders(),
+                    'body' => (string) $request->getBody(),
+                ]);
+
+                return $handler($request, $options)->then(
+                    function (
+                        GuzzleResponse $response
+                    ) use (
+                        $responseHandler, $request, $options
+                    ) {
+                        // Log the response
+                        $newResponse = $responseHandler($response, $request, $options);
+                        return $newResponse === null ? $response : $newResponse;
+                    }
+                );
+            };
+        };
     }
 }
