@@ -82,9 +82,9 @@ class LSTelegramNotifyPlus extends PluginBase
                 "Title: <code>{title}</code>\n" .
                 "SurveyId: <code>{surveyId}</code>\n" .
                 "ResponseId: <code>{responseId}</code>\n" .
-                "<a href=\"{urlPDF}\">PDF</a>" .
-                " | <a href=\"{urlDetails}\">Overview</a>" .
-                " | <a href=\"{urlEdit}\">Answers</a>" .
+                "<a href=\"{urlDetails}\">View</a>" .
+                " | <a href=\"{urlEdit}\">Edit</a>" .
+                " | <a href=\"{urlPDF}\">PDF</a>" .
                 " | <a href=\"{urlExport}\">Export</a>" .
                 " | <a href=\"{urlAttachments}\">Attachments</a>" .
                 "\n" .
@@ -150,16 +150,16 @@ class LSTelegramNotifyPlus extends PluginBase
             return;
         }
         $pdfUrl = App()->createAbsoluteUrl(
-            '/admin/responses/sa/viewquexmlpdf',
+            '/responses/viewquexmlpdf',
             [
-                'surveyid' => $surveyId,
-                'id' => $responseId
+                'surveyId' => $surveyId,
+                'id' => $responseId,
             ]
         );
         $detailsUrl = App()->createAbsoluteUrl(
             '/responses/view',
             [
-                'surveyid' => $surveyId,
+                'surveyId' => $surveyId,
                 'id' => $responseId
             ]
         );
