@@ -101,12 +101,10 @@ class LSTelegramNotifyPlus extends PluginBase
     {
         $event = $this->getEvent();
         $surveyId = $event->get('surveyId');
-        $baseUrl = $this->get(
-            'Enabled', // local
-            'Survey',
-            $surveyId, // Survey
-            $this->get('Enabled') // Global
-        );
+        $enable = $this->getSurveySettings('Enable', $surveyId);
+        if (!$enable) {
+            return;
+        }
         $responseId = $event->get('responseId');
         $oSurvey = Survey::model()->findByPk($surveyId);
         $baseUrl = $this->getSurveySettings('BaseUrl', $surveyId);
@@ -123,8 +121,8 @@ class LSTelegramNotifyPlus extends PluginBase
         $this->sendAttachments($surveyId, $responseId, $chatId, $client, $messageId);
     }
     
-    public function getSurveySettings(string $key, $surveyId = null) {
-        $globalValue = $this->get($key);
+    public function getSurveySettings(string $key, $surveyId = null, $default = null) {
+        $globalValue = $this->get($key, null, null, $default);
         $surveyId = $surveyId ?? $this->getEvent()->get('surveyId');
         return $this->get($key, 'Survey', $surveyId, $globalValue);
     }
@@ -349,6 +347,7 @@ class LSTelegramNotifyPlus extends PluginBase
     public function beforeSurveySettings()
     {
         $event = $this->getEvent();
+        $surveyId = $event->get('survey');
         $event->set(
             "surveysettings.{$this->id}",
             [
@@ -363,34 +362,19 @@ class LSTelegramNotifyPlus extends PluginBase
                         'label' => $this->settings['BaseUrl']['help'],
                         'help' => $this->settings['BaseUrl']['help'],
                         'default' => $this->settings['BaseUrl']['default'],
-                        'current' => $this->get(
-                            'BaseUrl',
-                            'Survey',
-                            $event->get('survey'), // Survey
-                            $this->get('BaseUrl') // Global
-                        ),
+                        'current' => $this->getSurveySettings('BaseUrl', $surveyId),
                     ],
                     'AuthToken' => [
                         'type' => 'string',
                         'label' => $this->settings['AuthToken']['help'],
                         'help' => $this->settings['AuthToken']['help'],
-                        'current' => $this->get(
-                            'AuthToken',
-                            'Survey',
-                            $event->get('survey'), // Survey
-                            $this->get('AuthToken') // Global
-                        ),
+                        'current' => $this->getSurveySettings('AuthToken', $surveyId),
                     ],
                     'ChatId' => [
                         'type' => 'string',
                         'label' => 'Chat id',
                         'help' => $this->settings['ChatId']['help'],
-                        'current' => $this->get(
-                            'ChatId',
-                            'Survey',
-                            $event->get('survey'), // Survey
-                            $this->get('ChatId') // Global
-                        ),
+                        'current' => $this->getSurveySettings('ChatId', $surveyId),
                     ],
                     'ParseMode' => [
                         'type' => $this->settings['ParseMode']['type'],
@@ -398,92 +382,32 @@ class LSTelegramNotifyPlus extends PluginBase
                         'options' => $this->settings['ParseMode']['options'],
                         'help' => $this->settings['ParseMode']['help'],
                         'default' => $this->settings['ParseMode']['default'],
-                        'current' => $this->get(
-                            'ParseMode',
-                            'Survey',
-                            $event->get('survey'), // Survey
-                            $this->get(
-                                'ParseMode',
-                                null,
-                                null,
-                                $this->settings['ParseMode']['default']
-                            ) // Global
-                        ),
+                        'current' => $this->getSurveySettings('ParseMode', $surveyId),
                     ],
                     'SendPdf' => [
                         'type' => $this->settings['SendPdf']['type'],
                         'label' => $this->settings['SendPdf']['label'],
-                        'current' => $this->get(
-                            'SendPdf',
-                            'Survey',
-                            $event->get('survey'), // Survey
-                            $this->get(
-                                'SendPdf',
-                                null,
-                                null,
-                                $this->settings['SendPdf']['default']
-                            ) // Global
-                        ),
+                        'current' => $this->getSurveySettings('SendPdf', $surveyId, $this->settings['SendPdf']['default']),
                     ],
                     'SendCsv' => [
                         'type' => $this->settings['SendCsv']['type'],
                         'label' => $this->settings['SendCsv']['label'],
-                        'current' => $this->get(
-                            'SendCsv',
-                            'Survey',
-                            $event->get('survey'), // Survey
-                            $this->get(
-                                'SendCsv',
-                                null,
-                                null,
-                                $this->settings['SendCsv']['default']
-                            ) // Global
-                        ),
+                        'current' => $this->getSurveySettings('SendCsv', $surveyId, $this->settings['SendCsv']['default']),
                     ],
                     'SendMessage' => [
                         'type' => $this->settings['SendMessage']['type'],
                         'label' => $this->settings['SendMessage']['label'],
-                        'current' => $this->get(
-                            'SendMessage',
-                            'Survey',
-                            $event->get('survey'), // Survey
-                            $this->get(
-                                'SendMessage',
-                                null,
-                                null,
-                                $this->settings['SendMessage']['default']
-                            ) // Global
-                        ),
+                        'current' => $this->getSurveySettings('SendMessage', $surveyId, $this->settings['SendMessage']['default']),
                     ],
                     'SendAttachments' => [
                         'type' => $this->settings['SendAttachments']['type'],
                         'label' => $this->settings['SendAttachments']['label'],
-                        'current' => $this->get(
-                            'SendAttachments',
-                            'Survey',
-                            $event->get('survey'), // Survey
-                            $this->get(
-                                'SendAttachments',
-                                null,
-                                null,
-                                $this->settings['SendAttachments']['default']
-                            ) // Global
-                        ),
+                        'current' => $this->getSurveySettings('SendAttachments', $surveyId, $this->settings['SendAttachments']['default']),
                     ],
                     'DefaultText' => [
                         'type' => 'text',
                         'label' => 'Default Text',
-                        'current' => $this->get(
-                            'DefaultText',
-                            'Survey',
-                            $event->get('survey'), // Survey
-                            $this->get(
-                                'DefaultText',
-                                null,
-                                null,
-                                $this->settings['DefaultText']['default']
-                            ) // Global
-                        ),
+                        'current' => $this->getSurveySettings('DefaultText', $surveyId, $this->settings['DefaultText']['default']),
                     ]
                 ]
             ]
