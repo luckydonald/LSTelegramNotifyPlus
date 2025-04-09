@@ -7,6 +7,15 @@ class LSTestPlugin extends PluginBase
         // Register your JavaScript
         Yii::app()->clientScript->registerScript(static::class, $this->getJavaScript(), CClientScript::POS_END);
     }
+
+    public function newDirectRequest($method, $params = [])
+    {
+        if ($method === 'testConfiguration') {
+            return $this->testConfiguration();
+        }
+        // Handle other methods if needed
+    }
+
     private function getJavaScriptName($fn = 'testConfiguration') {
         $cls = static::class;
         return "{$cls}_{$fn}";
@@ -29,10 +38,9 @@ class LSTestPlugin extends PluginBase
     public function getJavaScript()
     {
         $cls = static::class;
-        $url = Yii::app()->createUrl('admin/plugin/'.$cls);
+        $url = Yii::app()->createUrl('admin/plugin/testConfiguration', ['plugin' => $this->getName()]);
         $func = $this->getJavaScriptName();
         return "
-        <script>
             function {$func}() {
                 // Make an AJAX call to the testConfiguration method
                 $.ajax({
@@ -46,7 +54,6 @@ class LSTestPlugin extends PluginBase
                     }
                 });
             }
-        </script>
     ";
     }
 
