@@ -1,6 +1,5 @@
-# LimeSurvey LSTelegramNotify Plugin
-
-The Limesurvey LSTelegramNotify plugin allows you to send after Survey event to Telegram.
+# LimeSurvey LSTelegramNotifyPlus Plugin
+#### Notify form submission in Telegram, as PDF or CSV and with attachments
 
 <img src="img/telegram_example.png" />
 
@@ -8,13 +7,14 @@ The Limesurvey LSTelegramNotify plugin allows you to send after Survey event to 
 
 ### By zipfile
 
-- Download the zip of [lates release](https://github.com/librecodecoop/LSNextcloud/releases/latest)
+- Download the zip of [latest release](https://github.com/luckydonald/LSTelegramPlus/releases/latest)
 - Install the plugin in `Settings` > `Plugin Manager` > `Install zip`
 
 ### By repository
-- Copy the LSTelegramNotify folder to the Limesurvey "plugins" directory.
-- Go to `LSTelegramNotify` folder
-- Run `composer install` inside of folder `LSTelegramNotify`
+- Download the zip of [source code](https://github.com/luckydonald/LSTelegramNotifyPlus/archive/refs/heads/mane.zip)
+- Copy the LSTelegramNotifyPlus folder to the Limesurvey "plugins" directory.
+- Go to `LSTelegramNotifyPlus` folder
+- Run `composer install` inside of folder `LSTelegramNotifyPlus`
 - Activate the plugin at the Limesurvey plugin manager (requires proper user rights for accessing the feature at the Limesurvey admin interface).
 - Configure the plugin at the settings page
 
@@ -25,4 +25,4 @@ You can add custom settings by survey to send the messages to other groups, cust
 
 - Go to survey settings
 - GO to `Simple plugins`
-- Define your custom settings at `Settings for plugin LSTelegramNotify `
+- Define your custom settings at `Settings for plugin LSTelegramNotifyPlus `

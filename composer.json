@@ -1,16 +1,9 @@
 {
-    "name": "librecodecoop/ls-nextcloud",
-    "description": "Save all data of form into Nextcloud",
+    "name": "luckydonald/ls-telegram-plus",
+    "description": "Post new entries to telegram",
     "type": "library",
     "require": {
-      "irazasyed/telegram-bot-sdk": "^3.9",
-      "league/flysystem-webdav": "^1.0"
-    },
-    "license": "AGPL",
-    "authors": [
-        {
-            "name": "Vitor Mattos",
-            "email": "contato@LT.coop.br"
-        }
-    ]
+      "guzzlehttp/guzzle": "^7.5.0",
+      "ext-json": "*"
+    }
 }

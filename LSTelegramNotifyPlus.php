@@ -1,24 +1,24 @@
 <?php
 
-use Telegram\Bot\Api;
+use GuzzleHttp\Client;
 use Telegram\Bot\FileUpload\InputFile;
 
 require_once __DIR__ . DIRECTORY_SEPARATOR . 'vendor/autoload.php';
 
 /**
- * Class LSTelegramNotify
+ * Class LSTelegramNotifyPlus
  */
-class LSTelegramNotify extends PluginBase
+class LSTelegramNotifyPlus extends PluginBase
 {
     /**
      * @var string
      */
-    static protected $description = 'LSTelegramNotify Plugin';
+    static protected $description = 'LSTelegramNotifyPlus Plugin';
 
     /**
      * @var string
      */
-    static protected $name = 'LSTelegramNotify';
+    static protected $name = 'LSTelegramNotifyPlus';
 
     /**
      * @var string
@@ -29,10 +29,20 @@ class LSTelegramNotify extends PluginBase
      * @var string[][]
      */
     protected $settings = [
+        'Enable' => [
+            'type' => 'checkbox',
+            'label' => 'Enable telegram notifications',
+        ],
         'AuthToken' => [
             'type' => 'string',
             'label' => 'Auth Token',
             'help' => 'Bot API auth token, you can get one at <a href="https://t.me/BotFather" target="_blank">BotFather</a>.',
+        ],
+        'BaseUrl' => [
+            'type' => 'string',
+            'label' => 'Base URL',
+            'help' => 'URL of your base URL.',
+            'default' => 'https://api.telegram.org/',
         ],
         'ChatId' => [
             'type' => 'string',
@@ -57,6 +67,10 @@ class LSTelegramNotify extends PluginBase
         'SendMessage' => [
             'type' => 'checkbox',
             'label' => 'Check to send a text message using the default text template',
+        ],
+        'SendAttachments' => [
+            'type' => 'checkbox',
+            'label' => 'Check to send all attachments uploaded',
         ],
         'DefaultText' => [
             'type' => 'text',
@@ -87,23 +101,32 @@ class LSTelegramNotify extends PluginBase
     {
         $event = $this->getEvent();
         $surveyId = $event->get('surveyId');
+        $baseUrl = $this->get(
+            'Enabled', // local
+            'Survey',
+            $surveyId, // Survey
+            $this->get('Enabled') // Global
+        );
         $responseId = $event->get('responseId');
         $oSurvey = Survey::model()->findByPk($surveyId);
-        $chatId = $this->get(
-            'ChatId',
-            'Survey',
-            $surveyId, // Survey
-            $this->get('ChatId') // Global
-        );
-        $telegram = new Api($this->get(
-            'AuthToken',
-            'Survey',
-            $surveyId, // Survey
-            $this->get('AuthToken') // Global
-        ));
-        $this->sendMessage($surveyId, $responseId, $chatId, $telegram, $oSurvey->getLocalizedTitle());
-        $this->sendPdf($surveyId, $responseId, $chatId, $telegram);
-        $this->sendCsv($surveyId, $responseId, $chatId, $telegram);
+        $baseUrl = $this->getSurveySettings('BaseUrl', $surveyId);
+        $authToken = $this->getSurveySettings('AuthToken', $surveyId);
+        $chatId = $this->getSurveySettings('ChatId', $surveyId);
+
+        // Create a Guzzle client
+        $client = new Client([
+            'base_uri' => $baseUrl.'/bot'.$authToken.'/',
+        ]);
+        $messageId = $this->sendMessage($surveyId, $responseId, $chatId, $client, $oSurvey->getLocalizedTitle());
+        $this->sendPdf($surveyId, $responseId, $chatId, $client, $messageId);
+        $this->sendCsv($surveyId, $responseId, $chatId, $client, $messageId);
+        $this->sendAttachments($surveyId, $responseId, $chatId, $client, $messageId);
+    }
+    
+    public function getSurveySettings(string $key, $surveyId = null) {
+        $globalValue = $this->get($key);
+        $surveyId = $surveyId ?? $this->getEvent()->get('surveyId');
+        return $this->get($key, 'Survey', $surveyId, $globalValue);
     }
 
     /**
@@ -111,57 +134,111 @@ class LSTelegramNotify extends PluginBase
      *
      * @param $surveyId
      * @param $text
+     * @return int Message ID
      */
-    public function sendMessage($surveyId, $responseId, $chatId, Api $telegram, $title)
+    public function sendMessage($surveyId, $responseId, $chatId, Client $telegram, $title)
     {
-        $sendMessage = $this->get(
-            'SendMessage',
-            'Survey',
-            $surveyId, // Survey
-            $this->get('SendMessage') // Global
-        );
+        $sendMessage = $this->getSurveySettings('SendMessage', $surveyId);
         if (!$sendMessage) {
             return;
         }
-        $text = preg_replace(
+        $pdfUrl = App()->createAbsoluteUrl(
+            '/admin/responses/sa/viewquexmlpdf',
             [
-                '/\{surveyId\}/',
-                '/\{responseId\}/',
-                '/\{urlPDF\}/',
-                '/\{title\}/',
-            ],
-            [
-                $surveyId,
-                $responseId,
-                App()->createAbsoluteUrl(
-                    '/admin/responses/sa/viewquexmlpdf',
-                    [
-                        'surveyid' => $surveyId,
-                        'id' => $responseId
-                    ]
-                ),
-                $title,
-            ],
-            $this->get(
-                'DefaultText',
-                'Survey',
-                $surveyId, // Survey
-                $this->get('DefaultText') // Global
-            )
+                'surveyid' => $surveyId,
+                'id' => $responseId
+            ]
         );
-        $telegram->sendMessage([
+        $replacements = [
+            '/\{surveyId\}/' => $surveyId,
+            '/\{responseId\}/' => $responseId,
+            '/\{urlPDF\}/' => $pdfUrl,
+            '/\{title\}/' => $title,
+        ];
+        $defaultText = $this->getSurveySettings('DefaultText', $surveyId);
+        $text = preg_replace(
+            array_keys($replacements),
+            array_values($replacements),
+            $defaultText
+        );
+        $parseMode = $this->getSurveySettings('ParseMode', $surveyId);
+        $tgResponse = $this->sendTelegram(
+            $telegram,
+            $chatId,
+            null,
+            [
+                'parse_mode' => $parseMode,
+                'text' => $text,
+            ]
+        );
+        return $tgResponse['result']['message_id'];
+    }
+    private function sendTelegram(
+        $client,
+        $chatId,
+        $replyToMessageId,
+        $command="sendMessage",
+        $params=[],
+        $attachments=[]
+    ) {
+        $buildParams = [
             'chat_id' => $chatId,
-            'parse_mode' => $this->get(
-                'ParseMode',
-                'Survey',
-                $surveyId, // Survey
-                $this->get('ParseMode') // Global
-            ),
-            'text' => $text
-        ]);
+        ];
+        // If there's a reply to a message, add the reply_to_message_id parameter
+        if ($replyToMessageId) {
+            $buildParams['reply_parameters'] = [
+                'allow_sending_without_reply' => true,
+                'message_id' => $replyToMessageId,
+            ];
+        }
+
+        $buildParams = array_merge(
+            $buildParams,
+            $params
+        );
+
+        if (count($attachments) == 0) {
+            $args = [
+                'form_params' => $buildParams
+            ];
+        } else {
+            $args = [
+                'multipart' => array_merge(
+                    array_map(
+                        function ($key, $value) {
+                            return [
+                                'name'     => $key,
+                                'contents' => is_array($value) ? json_encode($value) : $value
+                            ];
+                        },
+                        array_keys($buildParams),
+                        array_values($buildParams)
+                    ),
+                    array_map(
+                        function ($key, $value) {
+                            if (!is_array($value)) {
+                                $value = [$value, basename($value)];
+                            }
+                            return [
+                                'name'     => $key,
+                                'contents' => fopen($value[0], 'r'),
+                                'filename' => $value[1]
+                            ];
+                        },
+                        array_keys($attachments),
+                        array_values($attachments)
+                    )
+                )
+            ];
+        }
+
+        // Send the request
+        $response = $client->post($command, $args);
+
+        return json_decode($response->getBody(), true);
     }
 
-    private function sendPdf($surveyId, $responseId, $chatId, Api $telegram): void
+    private function sendPdf($surveyId, $responseId, $chatId, Client $telegram, $messageId): void
     {
         $sendPdf = $this->get(
             'SendPdf',
@@ -173,32 +250,81 @@ class LSTelegramNotify extends PluginBase
             return;
         }
         $pdfPath = $this->getPdfPath($surveyId, $responseId);
-        $inputFile = new InputFile($pdfPath, "$surveyId-$responseId.pdf");
-        $telegram->sendDocument([
-            'chat_id' => $chatId,
-            'document' => $inputFile,
-        ]);
+        $this->sendTelegram(
+            $telegram,
+            $chatId,
+            $messageId,
+            'sendDocument',
+            [],
+            [
+                'document' => [$pdfPath, "$surveyId-$responseId.pdf"]
+            ]
+        );
         unlink($pdfPath);
     }
 
-    private function sendCsv($surveyId, $responseId, $chatId, Api $telegram): void
+    private function sendCsv($surveyId, $responseId, $chatId, Client $telegram, $messageId): void
     {
-        $sendCsv = $this->get(
-            'SendCsv',
-            'Survey',
-            $surveyId, // Survey
-            $this->get('SendCsv') // Global
-        );
+        $sendCsv = $this->getSurveySettings('SendCsv', $surveyId);
         if (!$sendCsv) {
             return;
         }
         $pdfPath = $this->getCsv($surveyId, $responseId);
-        $inputFile = new InputFile($pdfPath, "$surveyId-$responseId.csv");
-        $telegram->sendDocument([
-            'chat_id' => $chatId,
-            'document' => $inputFile,
-        ]);
+        $this->sendTelegram(
+            $telegram,
+            $chatId,
+            $messageId,
+            'sendDocument',
+            [],
+            [
+                'document' => [$pdfPath, "$surveyId-$responseId.csv"]
+            ]
+        );
         unlink($pdfPath);
+    }
+
+    private function sendAttachments($surveyId, $responseId, $chatId, Client $telegram, $messageId): void
+    {
+        $sendAttachments = $this->getSurveySettings('SendAttachments', $surveyId);
+        if (!$sendAttachments) {
+            return;
+        }
+        $response = Response::model($surveyId)->findByAttributes([
+            'id' => $this->getEvent()->get('responseId')
+        ])->decrypt();
+        $keys = [];
+        $files = [];
+        $datas = [];
+        $i = 0;
+        foreach ($response->getFiles() as $aFile) {
+            $key = "attachment_{$i}";
+            $i += 1;
+            $filepath = Yii::app()->getConfig('uploaddir') . "/surveys/" . $surveyId . "/files/" . $aFile['filename'];
+            $filename = "{$surveyId}-{$responseId}_{$aFile['name']}_{$aFile['filename']}";
+            $file = [$filepath, $filename];
+            $inputMediaDocument = [
+                'type' => 'document',
+                'media' => "attach://{$key}",
+                'caption' => $aFile['title'] ?? $aFile['comment'] ?? null, // Optional caption
+            ];
+            $files[$key] = $file;
+            $datas[$key] = $inputMediaDocument;
+        }
+        for ($i = 0; $i < count($datas); $i += 10) {
+            $upTo10Keys = array_slice($keys, $i, 10);
+            $upTo10Files = array_intersect_key($files, array_flip($upTo10Keys));  // array_flip makes the value the key
+            $upTo10Datas = array_values(array_intersect_key($datas, array_flip($upTo10Keys)));
+            $this->sendTelegram(
+                $telegram,
+                $chatId,
+                $messageId,
+                'sendMediaGroup',
+                [
+                    'media' => json_encode($upTo10Datas),
+                ],
+                $upTo10Files
+            );
+        }
     }
 
     private function getPdfPath($surveyId, $responseId): string
@@ -231,6 +357,18 @@ class LSTelegramNotify extends PluginBase
                     'SettingsInfo' => [
                         'type' => 'info',
                         'content' => '<legend><small>Telegram settings</small></legend>'
+                    ],
+                    'BaseUrl' => [
+                        'type' => 'string',
+                        'label' => $this->settings['BaseUrl']['help'],
+                        'help' => $this->settings['BaseUrl']['help'],
+                        'default' => $this->settings['BaseUrl']['default'],
+                        'current' => $this->get(
+                            'BaseUrl',
+                            'Survey',
+                            $event->get('survey'), // Survey
+                            $this->get('BaseUrl') // Global
+                        ),
                     ],
                     'AuthToken' => [
                         'type' => 'string',
@@ -317,6 +455,21 @@ class LSTelegramNotify extends PluginBase
                             ) // Global
                         ),
                     ],
+                    'SendAttachments' => [
+                        'type' => $this->settings['SendAttachments']['type'],
+                        'label' => $this->settings['SendAttachments']['label'],
+                        'current' => $this->get(
+                            'SendAttachments',
+                            'Survey',
+                            $event->get('survey'), // Survey
+                            $this->get(
+                                'SendAttachments',
+                                null,
+                                null,
+                                $this->settings['SendAttachments']['default']
+                            ) // Global
+                        ),
+                    ],
                     'DefaultText' => [
                         'type' => 'text',
                         'label' => 'Default Text',
@@ -354,12 +507,12 @@ class LSTelegramNotify extends PluginBase
      *
      * @return string File path
      */
-    private function getCsv(): string
+    private function getCsv($surveyId, $responseId): string
     {
         Yii::import('application.helpers.admin.export.FormattingOptions', true);
         Yii::import('application.helpers.admin.exportresults_helper', true);
-        $survey = Survey::model()->findByPk($this->getEvent()->get('surveyId'));
-        if (!($maxId = SurveyDynamic::model($this->getEvent()->get('surveyId'))->getMaxId())) {
+        $survey = Survey::model()->findByPk($surveyId);
+        if (!($maxId = SurveyDynamic::model($surveyId)->getMaxId())) {
             throw new Exception('No Data, could not get max id.', 1);
         }
         $oFormattingOptions = new FormattingOptions();
@@ -374,7 +527,7 @@ class LSTelegramNotify extends PluginBase
         $oFormattingOptions->csvFieldSeparator = ',';
         $oFormattingOptions->output = 'file';
         $oExport = new ExportSurveyResultsService();
-        $tempFile = $oExport->exportResponses($this->getEvent()->get('surveyId'), $survey->language, 'csv', $oFormattingOptions, '');
+        $tempFile = $oExport->exportResponses($surveyId, $survey->language, 'csv', $oFormattingOptions, '');
         return $tempFile;
     }
 }

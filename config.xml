@@ -1,18 +1,18 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <config>
     <metadata>
-        <name>LSTelegramNotify</name>
+        <name>LSTelegramNotifyPlus</name>
         <type>plugin</type>
         <creationDate>2020-10-15</creationDate>
-        <last_update>2020-10-15</last_update>
-        <author>Vitor Mattos (LibreCode, Lyseon Tech)</author>
-        <authorUrl>https://github.com/librecodecoop</authorUrl>
-        <supportUrl>https://github.com/librecodecoop/LSTelegramNotify</supportUrl>
-        <copyright>Copyright (C) 2021 LibreCode Coop.</copyright>
-        <email>contato@lt.coop.br</email>
+        <last_update>2025-04-09</last_update>
+        <author>luckydonald</author>
+        <authorUrl>https://github.com/luckydonald</authorUrl>
+        <supportUrl>https://github.com/luckydonald/LSTelegramNotifyPlus</supportUrl>
+        <copyright>Copyright (C) 2025 luckydonald, and others.</copyright>
+        <email>LSTelegramNotifyPlus_code@luckydonald.de</email>
         <license>GNU General Public License version 2 or later</license>
         <version>1.0.0</version>
-        <description><![CDATA[Notify form submission in Telegram]]></description>
+        <description><![CDATA[Notify form submission in Telegram, as PDF or CSV and with attachments]]></description>
     </metadata>
 
     <compatibility>
