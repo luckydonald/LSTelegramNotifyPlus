@@ -78,7 +78,7 @@ class LSTelegramNotifyPlus extends PluginBase
             'type' => 'text',
             'label' => 'Default Text',
             'default' =>
-                "<b>New <u>{title}</u> Survey Completion!</b>\n" .
+                "<b>New <a href=\"{urlSurvey}\">{title}</a> Survey Completion!</b>\n" .
                 "SurveyId: <code>{surveyId}</code>\n" .
                 "ResponseId: <code>{responseId}</code>\n" .
                 "<a href=\"{urlDetails}\">View</a>" .
@@ -92,6 +92,7 @@ class LSTelegramNotifyPlus extends PluginBase
                 '{title}' => 'Title of the survey.',
                 '{surveyId}' => 'ID of the survey.',
                 '{responseId}' => 'ID of the survey response.',
+                '{urlSurvey}' => "Url to the details page of the survey.",
                 '{urlDetails}' => "Url to the details page of the survey response.",
                 '{urlEdit}' => "Url to the edit page of the survey response.",
                 '{urlPDF}' => "Url to the pdf download of the survey response.",
@@ -198,6 +199,12 @@ class LSTelegramNotifyPlus extends PluginBase
                 'id' => $responseId,
             ]
         );
+        $surveyUrl = App()->createAbsoluteUrl(
+            "/surveyAdministration/view",
+            [
+                'surveyid' => $surveyId,
+            ]
+        );
         $detailsUrl = App()->createAbsoluteUrl(
             '/responses/view',
             [
@@ -223,6 +230,7 @@ class LSTelegramNotifyPlus extends PluginBase
             '/\{surveyId\}/' => $surveyId,
             '/\{responseId\}/' => $responseId,
             '/\{urlPDF\}/' => $pdfUrl,
+            '/\{urlSurvey\}/' => $surveyUrl,
             '/\{urlDetails\}/' => $detailsUrl,
             '/\{urlEdit\}/' => $editUrl,
             '/\{urlExport\}/' => $exportUrl,
