@@ -109,6 +109,11 @@ class LSTelegramNotifyPlus extends PluginBase
             'type' => 'info',
             'content' => '<legend><small>Attachment message settings</small></legend>'
         ],
+        'Reply' => [
+            'type' => 'checkbox',
+            'label' => 'Reply file messages to the text message.',
+            'default' => true,
+        ],
         'SendPdf' => [
             'type' => 'checkbox',
             'label' => 'Check to send the answer as PDF file',
@@ -183,7 +188,7 @@ class LSTelegramNotifyPlus extends PluginBase
      * @param $text
      * @return int Message ID
      */
-    public function sendMessage($surveyId, $responseId, $chatId, GuzzleClient $telegram, $title)
+    public function sendMessage($surveyId, $responseId, $chatId, GuzzleClient $telegram, $title): ?int
     {
         $sendMessage = $this->getSurveySettings('SendMessage', $surveyId);
         if (!$sendMessage) {
@@ -203,6 +208,11 @@ class LSTelegramNotifyPlus extends PluginBase
                 'text' => $text,
             ]
         );
+        $reply = $this->getSurveySettings('Reply', $surveyId);
+        if (!$reply) {
+            // if reply is disabled, simply don't provide that information.
+            return null;
+        }
         return $tgResponse['result']['message_id'];
     }
     private function sendTelegram(
@@ -271,12 +281,7 @@ class LSTelegramNotifyPlus extends PluginBase
 
     private function sendPdf($surveyId, $responseId, $chatId, GuzzleClient $telegram, $messageId): void
     {
-        $sendPdf = $this->get(
-            'SendPdf',
-            'Survey',
-            $surveyId, // Survey
-            $this->get('SendPdf') // Global
-        );
+        $sendPdf = $this->getSurveySettings('SendPdf', $surveyId);
         if (!$sendPdf) {
             return;
         }
@@ -457,6 +462,12 @@ class LSTelegramNotifyPlus extends PluginBase
                         'current' => $this->getSurveySettings('Template', $surveyId, $this->settings['Template']['default'])
                     ],
                     'SettingsInfo3' => $this->settings['SettingsInfo3'],
+                    'Reply' => [
+                        'type' => $this->settings['Reply']['type'],
+                        'label' => $this->settings['Reply']['label'],
+                        'default' => $this->settings['BaseUrl']['default'],
+                        'current' => $this->getSurveySettings('Reply', $surveyId, $this->settings['Reply']['default']),
+                    ],
                     'SendPdf' => [
                         'type' => $this->settings['SendPdf']['type'],
                         'label' => $this->settings['SendPdf']['label'],
