@@ -74,9 +74,9 @@ class LSTelegramNotifyPlus extends PluginBase
             'type' => 'checkbox',
             'label' => 'Check to send a text message using the default text template',
         ],
-        'DefaultText' => [
+        'Template' => [
             'type' => 'text',
-            'label' => 'Default Text',
+            'label' => 'Template Text',
             'default' =>
                 "<b>New <a href=\"{urlSurvey}\">{title}</a> Survey Completion!</b>\n" .
                 "SurveyId: <code>{surveyId}</code>\n" .
@@ -116,16 +116,16 @@ class LSTelegramNotifyPlus extends PluginBase
     public function __construct(LimeSurvey\PluginManager\PluginManager $manager, $id)
     {
         /** @noinspection RegExpRedundantEscape */
-        $info = $this->settings['DefaultText']['replacements'];
-        unset($this->settings['DefaultText']['replacements']);
+        $info = $this->settings['Template']['replacements'];
+        unset($this->settings['Template']['replacements']);
         $htmls = $this->replaceTemplate(
             123456,
             1,
             "Not A Real Survey",
-            $this->settings['DefaultText']['default']
+            $this->settings['Template']['default']
         );
         $replacements = [
-            '/\{default\}/' => htmlspecialchars($this->settings['DefaultText']['default']),
+            '/\{default\}/' => htmlspecialchars($this->settings['Template']['default']),
             '/\{example\}/' => $htmls[1],
             '/\{replacements\}/' => join(
                 "\n",
@@ -139,10 +139,10 @@ class LSTelegramNotifyPlus extends PluginBase
             ),
             "/\n/" => "<br/>\n",
         ];
-        $this->settings['DefaultText']['help'] = preg_replace(
+        $this->settings['Template']['help'] = preg_replace(
             array_keys($replacements),
             array_values($replacements),
-            $this->settings['DefaultText']['help']
+            $this->settings['Template']['help']
         );
         parent::__construct($manager, $id);
     }
@@ -204,7 +204,7 @@ class LSTelegramNotifyPlus extends PluginBase
         if (!$sendMessage) {
             return;
         }
-        $template = $this->getSurveySettings('DefaultText', $surveyId);
+        $template = $this->getSurveySettings('Template', $surveyId);
         $parseMode = $this->getSurveySettings('ParseMode', $surveyId);
         $text = $this->replaceTemplate($surveyId, $responseId, $title, $template, $parseMode);
 
@@ -478,11 +478,11 @@ class LSTelegramNotifyPlus extends PluginBase
                         'label' => $this->settings['SendMessage']['label'],
                         'current' => $this->getSurveySettings('SendMessage', $surveyId, $this->settings['SendMessage']['default']),
                     ],
-                    'DefaultText' => [
+                    'Template' => [
                         'type' => 'text',
-                        'label' => $this->settings['DefaultText']['label'],
-                        'help' => $this->settings['DefaultText']['help'],
-                        'current' => $this->getSurveySettings('DefaultText', $surveyId, $this->settings['DefaultText']['default'])
+                        'label' => $this->settings['Template']['label'],
+                        'help' => $this->settings['Template']['help'],
+                        'current' => $this->getSurveySettings('Template', $surveyId, $this->settings['Template']['default'])
                     ]
                 ]
             ]
