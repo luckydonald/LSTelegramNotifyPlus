@@ -102,6 +102,10 @@ class LSTelegramNotifyPlus extends PluginBase
             'help' =>
                 '<br>The default is:' .
                 '<br><pre>{default}</pre>' .
+                '<br>It would render like:' .
+                '<hr>' .
+                    '<p>{example}</p>' .
+                '<hr>' .
                 '<br>Available replacements are:' .
                 '<br><ul>{replacements}</ul>' .
                 ''
@@ -114,18 +118,26 @@ class LSTelegramNotifyPlus extends PluginBase
         /** @noinspection RegExpRedundantEscape */
         $info = $this->settings['DefaultText']['replacements'];
         unset($this->settings['DefaultText']['replacements']);
+        $htmls = $this->replaceTemplate(
+            123456,
+            1,
+            "Not A Real Survey",
+            $this->settings['DefaultText']['default']
+        );
         $replacements = [
             '/\{default\}/' => htmlspecialchars($this->settings['DefaultText']['default']),
+            '/\{example\}/' => $htmls[1],
             '/\{replacements\}/' => join(
                 "\n",
                 array_map(
                     function ($key, $value) {
-                        return "<li><code>{$key}</code><i>$value</i></li>";
+                        return "<li><code>{$key}</code>: <i>$value</i></li>";
                     },
                     array_keys($info),
                     array_values($info)
                 )
-            )
+            ),
+            "/\n/" => "<br/>\n",
         ];
         $this->settings['DefaultText']['help'] = preg_replace(
             array_keys($replacements),
@@ -192,63 +204,10 @@ class LSTelegramNotifyPlus extends PluginBase
         if (!$sendMessage) {
             return;
         }
-        $pdfUrl = App()->createAbsoluteUrl(
-            '/responses/viewquexmlpdf',
-            [
-                'surveyId' => $surveyId,
-                'id' => $responseId,
-            ]
-        );
-        $surveyUrl = App()->createAbsoluteUrl(
-            "/surveyAdministration/view",
-            [
-                'surveyid' => $surveyId,
-            ]
-        );
-        $detailsUrl = App()->createAbsoluteUrl(
-            '/responses/view',
-            [
-                'surveyId' => $surveyId,
-                'id' => $responseId
-            ]
-        );
-        $editUrl = App()->createAbsoluteUrl(
-            "/admin/dataentry/sa/editdata/subaction/edit/surveyId/$surveyId/id/$responseId/browseLang"
-        );
-        $exportUrl = App()->createAbsoluteUrl(
-            "/admin/export/sa/exportresults/surveyid/$surveyId/id/$responseId"
-        );
-        $attachmentsUrl = App()->createAbsoluteUrl(
-            "/responses/downloadfiles",
-            [
-                'surveyId' => $surveyId,
-                'responseIds' => $responseId,
-            ]
-        );
-        $replacements = [
-            '/\{title\}/' => $title,
-            '/\{surveyId\}/' => $surveyId,
-            '/\{responseId\}/' => $responseId,
-            '/\{urlPDF\}/' => $pdfUrl,
-            '/\{urlSurvey\}/' => $surveyUrl,
-            '/\{urlDetails\}/' => $detailsUrl,
-            '/\{urlEdit\}/' => $editUrl,
-            '/\{urlExport\}/' => $exportUrl,
-            '/\{urlAttachments\}/' => $attachmentsUrl,
-        ];
+        $template = $this->getSurveySettings('DefaultText', $surveyId);
         $parseMode = $this->getSurveySettings('ParseMode', $surveyId);
-        if (strtolower($parseMode ?? '') === 'html') {
-            // make sure the stuff is escaped.
-            foreach ($replacements as $key => $value) {
-                $replacements[$key] = htmlspecialchars($value, ENT_QUOTES);
-            }
-        }
-        $defaultText = $this->getSurveySettings('DefaultText', $surveyId);
-        $text = preg_replace(
-            array_keys($replacements),
-            array_values($replacements),
-            $defaultText
-        );
+        $text = $this->replaceTemplate($surveyId, $responseId, $title, $template, $parseMode);
+
         $tgResponse = $this->sendTelegram(
             $telegram,
             $chatId,
@@ -521,8 +480,9 @@ class LSTelegramNotifyPlus extends PluginBase
                     ],
                     'DefaultText' => [
                         'type' => 'text',
-                        'current' => $this->getSurveySettings('DefaultText', $surveyId, $this->settings['DefaultText']['default']),
-                        'label' => 'The default is:<br><pre>'.htmlspecialchars($this->settings['DefaultText']['default']).'</pre>',
+                        'label' => $this->settings['DefaultText']['label'],
+                        'help' => $this->settings['DefaultText']['help'],
+                        'current' => $this->getSurveySettings('DefaultText', $surveyId, $this->settings['DefaultText']['default'])
                     ]
                 ]
             ]
@@ -568,5 +528,72 @@ class LSTelegramNotifyPlus extends PluginBase
         $oExport = new ExportSurveyResultsService();
         $tempFile = $oExport->exportResponses($surveyId, $survey->language, 'csv', $oFormattingOptions, '');
         return $tempFile;
+    }
+
+    /**
+     * @param $surveyId
+     * @param $responseId
+     * @param $title
+     * @param $defaultText
+     * @return array
+     */
+    public function replaceTemplate($surveyId, $responseId, $title, $defaultText, $parseMode = 'html'): array
+    {
+        $pdfUrl = App()->createAbsoluteUrl(
+            '/responses/viewquexmlpdf',
+            [
+                'surveyId' => $surveyId,
+                'id' => $responseId,
+            ]
+        );
+        $surveyUrl = App()->createAbsoluteUrl(
+            "/surveyAdministration/view",
+            [
+                'surveyid' => $surveyId,
+            ]
+        );
+        $detailsUrl = App()->createAbsoluteUrl(
+            '/responses/view',
+            [
+                'surveyId' => $surveyId,
+                'id' => $responseId
+            ]
+        );
+        $editUrl = App()->createAbsoluteUrl(
+            "/admin/dataentry/sa/editdata/subaction/edit/surveyId/$surveyId/id/$responseId/browseLang"
+        );
+        $exportUrl = App()->createAbsoluteUrl(
+            "/admin/export/sa/exportresults/surveyid/$surveyId/id/$responseId"
+        );
+        $attachmentsUrl = App()->createAbsoluteUrl(
+            "/responses/downloadfiles",
+            [
+                'surveyId' => $surveyId,
+                'responseIds' => $responseId
+            ]
+        );
+        $replacements = [
+            '/\{title\}/' => $title,
+            '/\{surveyId\}/' => $surveyId,
+            '/\{responseId\}/' => $responseId,
+            '/\{urlPDF\}/' => $pdfUrl,
+            '/\{urlSurvey\}/' => $surveyUrl,
+            '/\{urlDetails\}/' => $detailsUrl,
+            '/\{urlEdit\}/' => $editUrl,
+            '/\{urlExport\}/' => $exportUrl,
+            '/\{urlAttachments\}/' => $attachmentsUrl,
+        ];
+        if (strtolower($parseMode ?? '') === 'html') {
+            // make sure the stuff is escaped.
+            foreach ($replacements as $key => $value) {
+                $replacements[$key] = htmlspecialchars($value, ENT_QUOTES);
+            }
+        }
+        $text = preg_replace(
+            array_keys($replacements),
+            array_values($replacements),
+            $defaultText
+        );
+        return [$parseMode, $text];
     }
 }
