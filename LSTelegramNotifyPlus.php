@@ -35,6 +35,10 @@ class LSTelegramNotifyPlus extends PluginBase
             'label' => 'Enable telegram notifications',
             'default' => true,
         ],
+        'SettingsInfo' => [
+            'type' => 'info',
+            'content' => '<legend><small>Telegram settings</small></legend>'
+        ],
         'AuthToken' => [
             'type' => 'string',
             'label' => 'Auth Token',
@@ -51,28 +55,20 @@ class LSTelegramNotifyPlus extends PluginBase
             'label' => 'Chat id',
             'help' => 'The ID of group that will receive the notification messages. You can add the bot <a href="https://t.me/RawDataBot" target="_blank">RawDataBot</a> to your group, get the chat_id and after remove this bot from group.',
         ],
+        'SettingsInfo2' => [
+            'type' => 'info',
+            'content' => '<legend><small>Text message settings</small></legend>'
+        ],
+        'SendMessage' => [
+            'type' => 'checkbox',
+            'label' => 'Check to send a text message using the default text template',
+        ],
         'ParseMode' => [
             'type' => 'select',
             'label' => 'Parse mode',
             'options' => array('HTML' => 'HTML', 'Markdown'  => 'Markdown', 'MarkdownV2' => 'MarkdownV2', 'Text' => 'Text'),
             'help' => 'As the Telegram bot API <a href="https://core.telegram.org/bots/api#formatting-options" target="_blank">formatting options</a>.',
             'default' => 'HTML',
-        ],
-        'SendPdf' => [
-            'type' => 'checkbox',
-            'label' => 'Check to send the answer as PDF file',
-        ],
-        'SendCsv' => [
-            'type' => 'checkbox',
-            'label' => 'Check to send all answers as CSV file',
-        ],
-        'SendAttachments' => [
-            'type' => 'checkbox',
-            'label' => 'Check to send all attachments uploaded',
-        ],
-        'SendMessage' => [
-            'type' => 'checkbox',
-            'label' => 'Check to send a text message using the default text template',
         ],
         'Template' => [
             'type' => 'text',
@@ -108,6 +104,22 @@ class LSTelegramNotifyPlus extends PluginBase
                 '<br><ul>{replacements}</ul>' .
                 ''
             ,
+        ],
+        'SettingsInfo3' => [
+            'type' => 'info',
+            'content' => '<legend><small>Attachment message settings</small></legend>'
+        ],
+        'SendPdf' => [
+            'type' => 'checkbox',
+            'label' => 'Check to send the answer as PDF file',
+        ],
+        'SendCsv' => [
+            'type' => 'checkbox',
+            'label' => 'Check to send all answers as CSV file',
+        ],
+        'SendAttachments' => [
+            'type' => 'checkbox',
+            'label' => 'Check to send all attachments uploaded',
         ],
     ];
 
@@ -404,10 +416,7 @@ class LSTelegramNotifyPlus extends PluginBase
                         'default' => $this->settings['BaseUrl']['default'],
                         'current' => $this->getSurveySettings('Enable', $surveyId, $this->settings['Enable']['default']),
                     ],
-                    'SettingsInfo' => [
-                        'type' => 'info',
-                        'content' => '<legend><small>Telegram settings</small></legend>'
-                    ],
+                    'SettingsInfo' => $this->settings['SettingsInfo'],
                     'BaseUrl' => [
                         'type' => 'string',
                         'label' => $this->settings['BaseUrl']['help'],
@@ -427,10 +436,7 @@ class LSTelegramNotifyPlus extends PluginBase
                         'help' => $this->settings['ChatId']['help'],
                         'current' => $this->getSurveySettings('ChatId', $surveyId),
                     ],
-                    'SettingsInfo2' => [
-                        'type' => 'info',
-                        'content' => '<legend><small>Text message settings</small></legend>'
-                    ],
+                    'SettingsInfo2' => $this->settings['SettingsInfo2'],
                     'SendMessage' => [
                         'type' => $this->settings['SendMessage']['type'],
                         'label' => $this->settings['SendMessage']['label'],
@@ -449,12 +455,8 @@ class LSTelegramNotifyPlus extends PluginBase
                         'label' => $this->settings['Template']['label'],
                         'help' => $this->replaceTemplateHelp($surveyId, 1, $title),
                         'current' => $this->getSurveySettings('Template', $surveyId, $this->settings['Template']['default'])
-                    ]
                     ],
-                    'SettingsInfo3' => [
-                        'type' => 'info',
-                        'content' => '<legend><small>Attachment message settings</small></legend>'
-                    ],
+                    'SettingsInfo3' => $this->settings['SettingsInfo3'],
                     'SendPdf' => [
                         'type' => $this->settings['SendPdf']['type'],
                         'label' => $this->settings['SendPdf']['label'],
