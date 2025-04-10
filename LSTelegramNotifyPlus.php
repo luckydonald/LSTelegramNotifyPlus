@@ -79,7 +79,6 @@ class LSTelegramNotifyPlus extends PluginBase
             'label' => 'Default Text',
             'default' =>
                 "<b>New <u>{title}</u> Survey Completion!</b>\n" .
-                "Title: <code>{title}</code>\n" .
                 "SurveyId: <code>{surveyId}</code>\n" .
                 "ResponseId: <code>{responseId}</code>\n" .
                 "<a href=\"{urlDetails}\">View</a>" .
@@ -88,9 +87,22 @@ class LSTelegramNotifyPlus extends PluginBase
                 " | <a href=\"{urlExport}\">Export</a>" .
                 " | <a href=\"{urlAttachments}\">Attachments</a>" .
                 "\n" .
-                ""
+                "",
+            'help' => 'The default is:<br><pre>{default}</pre>',
+
         ],
     ];
+
+    public function __construct(LimeSurvey\PluginManager\PluginManager $manager, $id)
+    {
+        /** @noinspection RegExpRedundantEscape */
+        $this->settings['DefaultText']['help'] = preg_replace(
+            '/\{default\}/',
+            htmlspecialchars($this->settings['DefaultText']['default']),
+            $this->settings['DefaultText']['help']
+        );
+        parent::__construct($manager, $id);
+    }
 
     /**
      * @return void
@@ -471,8 +483,8 @@ class LSTelegramNotifyPlus extends PluginBase
                     ],
                     'DefaultText' => [
                         'type' => 'text',
-                        'label' => 'Default Text',
                         'current' => $this->getSurveySettings('DefaultText', $surveyId, $this->settings['DefaultText']['default']),
+                        'label' => 'The default is:<br><pre>'.htmlspecialchars($this->settings['DefaultText']['default']).'</pre>',
                     ]
                 ]
             ]
