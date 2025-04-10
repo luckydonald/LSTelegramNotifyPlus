@@ -88,7 +88,7 @@ class LSTelegramNotifyPlus extends PluginBase
                 " | <a href=\"{urlAttachments}\">Attachments</a>" .
                 "\n" .
                 "",
-            'replacements' => [
+            '{replacements}' => [
                 '{title}' => 'Title of the survey.',
                 '{surveyId}' => 'ID of the survey.',
                 '{responseId}' => 'ID of the survey response.',
@@ -99,13 +99,11 @@ class LSTelegramNotifyPlus extends PluginBase
                 '{urlExport}' => "Url to the export page of survey response.",
                 '{urlAttachments}' => "Url to the attachments of the survey response.",
             ],
-            'help' =>
+            '{help}' =>
                 '<br>The default is:' .
                 '<br><pre>{default}</pre>' .
-                '<br>It would render like:' .
-                '<hr>' .
-                    '<p>{example}</p>' .
-                '<hr>' .
+                '<br>The default would render like:' .
+                '<br><p class="alert alert-secondary">{example}</p>' .
                 '<br>Available replacements are:' .
                 '<br><ul>{replacements}</ul>' .
                 ''
@@ -115,35 +113,7 @@ class LSTelegramNotifyPlus extends PluginBase
 
     public function __construct(LimeSurvey\PluginManager\PluginManager $manager, $id)
     {
-        /** @noinspection RegExpRedundantEscape */
-        $info = $this->settings['Template']['replacements'];
-        unset($this->settings['Template']['replacements']);
-        $htmls = $this->replaceTemplate(
-            123456,
-            1,
-            "Not A Real Survey",
-            $this->settings['Template']['default']
-        );
-        $replacements = [
-            '/\{default\}/' => htmlspecialchars($this->settings['Template']['default']),
-            '/\{example\}/' => $htmls[1],
-            '/\{replacements\}/' => join(
-                "\n",
-                array_map(
-                    function ($key, $value) {
-                        return "<li><code>{$key}</code>: <i>$value</i></li>";
-                    },
-                    array_keys($info),
-                    array_values($info)
-                )
-            ),
-            "/\n/" => "<br/>\n",
-        ];
-        $this->settings['Template']['help'] = preg_replace(
-            array_keys($replacements),
-            array_values($replacements),
-            $this->settings['Template']['help']
-        );
+        $this->settings['Template']['help'] = $this->replaceTemplateHelp();
         parent::__construct($manager, $id);
     }
 
@@ -170,6 +140,9 @@ class LSTelegramNotifyPlus extends PluginBase
         }
         $responseId = $event->get('responseId');
         $oSurvey = Survey::model()->findByPk($surveyId);
+        if (!$oSurvey) {
+            return;
+        }
         $baseUrl = $this->getSurveySettings('BaseUrl', $surveyId);
         $authToken = $this->getSurveySettings('AuthToken', $surveyId);
         $chatId = $this->getSurveySettings('ChatId', $surveyId);
@@ -202,7 +175,7 @@ class LSTelegramNotifyPlus extends PluginBase
     {
         $sendMessage = $this->getSurveySettings('SendMessage', $surveyId);
         if (!$sendMessage) {
-            return;
+            return null;
         }
         $template = $this->getSurveySettings('Template', $surveyId);
         $parseMode = $this->getSurveySettings('ParseMode', $surveyId);
@@ -416,6 +389,10 @@ class LSTelegramNotifyPlus extends PluginBase
     {
         $event = $this->getEvent();
         $surveyId = $event->get('survey');
+
+        $oSurvey = Survey::model()->findByPk($surveyId);
+        $title = $oSurvey->title ?? 'Cool Survey';
+
         $event->set(
             "surveysettings.{$this->id}",
             [
@@ -481,7 +458,7 @@ class LSTelegramNotifyPlus extends PluginBase
                     'Template' => [
                         'type' => 'text',
                         'label' => $this->settings['Template']['label'],
-                        'help' => $this->settings['Template']['help'],
+                        'help' => $this->replaceTemplateHelp($surveyId, 1, $title),
                         'current' => $this->getSurveySettings('Template', $surveyId, $this->settings['Template']['default'])
                     ]
                 ]
@@ -595,5 +572,45 @@ class LSTelegramNotifyPlus extends PluginBase
             $defaultText
         );
         return [$parseMode, $text];
+    }
+
+    /**
+     * @return array|string|string[]|null
+     */
+    public function replaceTemplateHelp(
+        $surveyId=123456,
+        $responseId=1,
+        $title='Not A Real Survey'
+    ) {
+        $info = $this->settings['Template']['{replacements}'];
+        $template = $this->settings['Template']['{help}'];
+
+        $htmls = $this->replaceTemplate(
+            $surveyId,
+            $responseId,
+            $title,
+            $this->settings['Template']['default']
+        );
+        $replacements = [
+            '/\{default\}/' => htmlspecialchars($this->settings['Template']['default']),
+            '/\{example\}/' => $htmls[1],
+            '/\{replacements\}/' => join(
+                "\n",
+                array_map(
+                    function ($key, $value) {
+                        return "<li><code>{$key}</code>: <i>$value</i></li>";
+                    },
+                    array_keys($info),
+                    array_values($info)
+                )
+            ),
+            "/\n/" => "<br/>\n",
+        ];
+        $return = preg_replace(
+            array_keys($replacements),
+            array_values($replacements),
+            $template
+        );
+        return $return;
     }
 }
