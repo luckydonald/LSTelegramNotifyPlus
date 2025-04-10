@@ -427,6 +427,15 @@ class LSTelegramNotifyPlus extends PluginBase
                         'help' => $this->settings['ChatId']['help'],
                         'current' => $this->getSurveySettings('ChatId', $surveyId),
                     ],
+                    'SettingsInfo2' => [
+                        'type' => 'info',
+                        'content' => '<legend><small>Text message settings</small></legend>'
+                    ],
+                    'SendMessage' => [
+                        'type' => $this->settings['SendMessage']['type'],
+                        'label' => $this->settings['SendMessage']['label'],
+                        'current' => $this->getSurveySettings('SendMessage', $surveyId, $this->settings['SendMessage']['default']),
+                    ],
                     'ParseMode' => [
                         'type' => $this->settings['ParseMode']['type'],
                         'label' => $this->settings['ParseMode']['label'],
@@ -434,6 +443,17 @@ class LSTelegramNotifyPlus extends PluginBase
                         'help' => $this->settings['ParseMode']['help'],
                         'default' => $this->settings['ParseMode']['default'],
                         'current' => $this->getSurveySettings('ParseMode', $surveyId),
+                    ],
+                    'Template' => [
+                        'type' => 'text',
+                        'label' => $this->settings['Template']['label'],
+                        'help' => $this->replaceTemplateHelp($surveyId, 1, $title),
+                        'current' => $this->getSurveySettings('Template', $surveyId, $this->settings['Template']['default'])
+                    ]
+                    ],
+                    'SettingsInfo3' => [
+                        'type' => 'info',
+                        'content' => '<legend><small>Attachment message settings</small></legend>'
                     ],
                     'SendPdf' => [
                         'type' => $this->settings['SendPdf']['type'],
@@ -450,17 +470,6 @@ class LSTelegramNotifyPlus extends PluginBase
                         'label' => $this->settings['SendAttachments']['label'],
                         'current' => $this->getSurveySettings('SendAttachments', $surveyId, $this->settings['SendAttachments']['default']),
                     ],
-                    'SendMessage' => [
-                        'type' => $this->settings['SendMessage']['type'],
-                        'label' => $this->settings['SendMessage']['label'],
-                        'current' => $this->getSurveySettings('SendMessage', $surveyId, $this->settings['SendMessage']['default']),
-                    ],
-                    'Template' => [
-                        'type' => 'text',
-                        'label' => $this->settings['Template']['label'],
-                        'help' => $this->replaceTemplateHelp($surveyId, 1, $title),
-                        'current' => $this->getSurveySettings('Template', $surveyId, $this->settings['Template']['default'])
-                    ]
                 ]
             ]
         );
