@@ -11,7 +11,7 @@
         <copyright>Copyright (C) 2025 luckydonald, and others.</copyright>
         <email>LSTelegramNotifyPlus_code@luckydonald.de</email>
         <license>MIT / GNU General Public License version 2 or later</license>
-        <version>2.0.0</version>
+        <version>2.0.1</version>
         <description><![CDATA[Notify form submission in Telegram, as PDF or CSV and with attachments]]></description>
     </metadata>
 
