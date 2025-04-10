@@ -410,82 +410,37 @@ class LSTelegramNotifyPlus extends PluginBase
         $oSurvey = Survey::model()->findByPk($surveyId);
         $title = $oSurvey->title ?? 'Cool Survey';
 
-        $event->set(
-            "surveysettings.{$this->id}",
-            [
-                'name' => get_class($this),
-                'settings' => [
-                    'Enable' => [
-                        'type' => $this->settings['Enable']['type'],
-                        'label' => $this->settings['Enable']['label'],
-                        'default' => $this->settings['BaseUrl']['default'],
-                        'current' => $this->getSurveySettings('Enable', $surveyId, $this->settings['Enable']['default']),
-                    ],
-                    'SettingsInfo' => $this->settings['SettingsInfo'],
-                    'BaseUrl' => [
-                        'type' => 'string',
-                        'label' => $this->settings['BaseUrl']['help'],
-                        'help' => $this->settings['BaseUrl']['help'],
-                        'default' => $this->settings['BaseUrl']['default'],
-                        'current' => $this->getSurveySettings('BaseUrl', $surveyId),
-                    ],
-                    'AuthToken' => [
-                        'type' => 'string',
-                        'label' => $this->settings['AuthToken']['help'],
-                        'help' => $this->settings['AuthToken']['help'],
-                        'current' => $this->getSurveySettings('AuthToken', $surveyId),
-                    ],
-                    'ChatId' => [
-                        'type' => 'string',
-                        'label' => 'Chat id',
-                        'help' => $this->settings['ChatId']['help'],
-                        'current' => $this->getSurveySettings('ChatId', $surveyId),
-                    ],
-                    'SettingsInfo2' => $this->settings['SettingsInfo2'],
-                    'SendMessage' => [
-                        'type' => $this->settings['SendMessage']['type'],
-                        'label' => $this->settings['SendMessage']['label'],
-                        'current' => $this->getSurveySettings('SendMessage', $surveyId, $this->settings['SendMessage']['default']),
-                    ],
-                    'ParseMode' => [
-                        'type' => $this->settings['ParseMode']['type'],
-                        'label' => $this->settings['ParseMode']['label'],
-                        'options' => $this->settings['ParseMode']['options'],
-                        'help' => $this->settings['ParseMode']['help'],
-                        'default' => $this->settings['ParseMode']['default'],
-                        'current' => $this->getSurveySettings('ParseMode', $surveyId),
-                    ],
-                    'Template' => [
-                        'type' => 'text',
-                        'label' => $this->settings['Template']['label'],
-                        'help' => $this->replaceTemplateHelp($surveyId, 1, $title),
-                        'current' => $this->getSurveySettings('Template', $surveyId, $this->settings['Template']['default'])
-                    ],
-                    'SettingsInfo3' => $this->settings['SettingsInfo3'],
-                    'Reply' => [
-                        'type' => $this->settings['Reply']['type'],
-                        'label' => $this->settings['Reply']['label'],
-                        'default' => $this->settings['BaseUrl']['default'],
-                        'current' => $this->getSurveySettings('Reply', $surveyId, $this->settings['Reply']['default']),
-                    ],
-                    'SendPdf' => [
-                        'type' => $this->settings['SendPdf']['type'],
-                        'label' => $this->settings['SendPdf']['label'],
-                        'current' => $this->getSurveySettings('SendPdf', $surveyId, $this->settings['SendPdf']['default']),
-                    ],
-                    'SendCsv' => [
-                        'type' => $this->settings['SendCsv']['type'],
-                        'label' => $this->settings['SendCsv']['label'],
-                        'current' => $this->getSurveySettings('SendCsv', $surveyId, $this->settings['SendCsv']['default']),
-                    ],
-                    'SendAttachments' => [
-                        'type' => $this->settings['SendAttachments']['type'],
-                        'label' => $this->settings['SendAttachments']['label'],
-                        'current' => $this->getSurveySettings('SendAttachments', $surveyId, $this->settings['SendAttachments']['default']),
-                    ],
-                ]
-            ]
-        );
+        $currents = [
+            'Enable' => $this->getSurveySettings('Enable', $surveyId, $this->settings['Enable']['default']),
+            'BaseUrl' => $this->getSurveySettings('BaseUrl', $surveyId),
+            'AuthToken' => $this->getSurveySettings('AuthToken', $surveyId),
+            'ChatId' => $this->getSurveySettings('ChatId', $surveyId),
+            'SendMessage' => $this->getSurveySettings('SendMessage', $surveyId, $this->settings['SendMessage']['default']),
+            'ParseMode' => $this->getSurveySettings('ParseMode', $surveyId),
+            'Template' => $this->getSurveySettings('Template', $surveyId, $this->settings['Template']['default']),
+            'Reply' => $this->getSurveySettings('Reply', $surveyId, $this->settings['Reply']['default']),
+            'SendPdf' => $this->getSurveySettings('SendPdf', $surveyId, $this->settings['SendPdf']['default']),
+            'SendCsv' => $this->getSurveySettings('SendCsv', $surveyId, $this->settings['SendCsv']['default']),
+            'SendAttachments' => $this->getSurveySettings('SendAttachments', $surveyId, $this->settings['SendAttachments']['default']),
+        ];
+
+        $settings = [];
+        foreach ($this->settings as $name => $value) {
+            if (!isset($currents[$name])) {
+                $settings[$name] = $value;
+            } else {
+                $settings[$name] = array_merge(
+                    ['current' => $currents[$name]],
+                    $value
+                );
+            }
+        }
+        $settings['Template']['help'] = $this->replaceTemplateHelp($surveyId, 1, $title);
+        $surveysettings = [
+            'name' => get_class($this),
+            'settings' => $settings,
+        ];
+        $event->set("surveysettings.{$this->id}", $surveysettings);
     }
 
     /**
