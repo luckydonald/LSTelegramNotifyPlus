@@ -88,17 +88,47 @@ class LSTelegramNotifyPlus extends PluginBase
                 " | <a href=\"{urlAttachments}\">Attachments</a>" .
                 "\n" .
                 "",
-            'help' => 'The default is:<br><pre>{default}</pre>',
-
+            'replacements' => [
+                '{title}' => 'Title of the survey.',
+                '{surveyId}' => 'ID of the survey.',
+                '{responseId}' => 'ID of the survey response.',
+                '{urlDetails}' => "Url to the details page of the survey response.",
+                '{urlEdit}' => "Url to the edit page of the survey response.",
+                '{urlPDF}' => "Url to the pdf download of the survey response.",
+                '{urlExport}' => "Url to the export page of survey response.",
+                '{urlAttachments}' => "Url to the attachments of the survey response.",
+            ],
+            'help' =>
+                '<br>The default is:' .
+                '<br><pre>{default}</pre>' .
+                '<br>Available replacements are:' .
+                '<br><ul>{replacements}</ul>' .
+                ''
+            ,
         ],
     ];
 
     public function __construct(LimeSurvey\PluginManager\PluginManager $manager, $id)
     {
         /** @noinspection RegExpRedundantEscape */
+        $info = $this->settings['DefaultText']['replacements'];
+        unset($this->settings['DefaultText']['replacements']);
+        $replacements = [
+            '/\{default\}/' => htmlspecialchars($this->settings['DefaultText']['default']),
+            '/\{replacements\}/' => join(
+                "\n",
+                array_map(
+                    function ($key, $value) {
+                        return "<li><code>{$key}</code><i>$value</i></li>";
+                    },
+                    array_keys($info),
+                    array_values($info)
+                )
+            )
+        ];
         $this->settings['DefaultText']['help'] = preg_replace(
-            '/\{default\}/',
-            htmlspecialchars($this->settings['DefaultText']['default']),
+            array_keys($replacements),
+            array_values($replacements),
             $this->settings['DefaultText']['help']
         );
         parent::__construct($manager, $id);
