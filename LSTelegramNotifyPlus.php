@@ -491,7 +491,7 @@ class LSTelegramNotifyPlus extends PluginBase
      * @param $defaultText
      * @return array
      */
-    public function replaceTemplate($surveyId, $responseId, $title, $defaultText, $parseMode = 'html'): array
+    public function replaceTemplate($surveyId, $responseId, $title, $defaultText, $parseMode): string
     {
         $pdfUrl = App()->createAbsoluteUrl(
             '/responses/viewquexmlpdf',
@@ -548,7 +548,7 @@ class LSTelegramNotifyPlus extends PluginBase
             array_values($replacements),
             $defaultText
         );
-        return [$parseMode, $text];
+        return $text;
     }
 
     /**
@@ -557,20 +557,22 @@ class LSTelegramNotifyPlus extends PluginBase
     public function replaceTemplateHelp(
         $surveyId=123456,
         $responseId=1,
-        $title='Not A Real Survey'
+        $title='Not A Real Survey',
+        $parseMode='html'
     ) {
         $info = $this->settings['Template']['{replacements}'];
         $template = $this->settings['Template']['{help}'];
 
-        $htmls = $this->replaceTemplate(
+        $html = $this->replaceTemplate(
             $surveyId,
             $responseId,
             $title,
-            $this->settings['Template']['default']
+            $this->settings['Template']['default'],
+            $parseMode
         );
         $replacements = [
             '/\{default\}/' => htmlspecialchars($this->settings['Template']['default']),
-            '/\{example\}/' => $htmls[1],
+            '/\{example\}/' => $html,
             '/\{replacements\}/' => join(
                 "\n",
                 array_map(
