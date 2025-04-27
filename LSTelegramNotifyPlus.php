@@ -1,6 +1,7 @@
 <?php
 
 use GuzzleHttp\Client as GuzzleClient;
+use GuzzleHttp\Exception\BadResponseException;
 
 require_once __DIR__ . DIRECTORY_SEPARATOR . 'vendor/autoload.php';
 
@@ -275,7 +276,39 @@ class LSTelegramNotifyPlus extends PluginBase
         }
 
         // Send the request
-        $response = $client->post($command, $args);
+        try {
+            $response = $client->post($command, $args);
+            // Process the response if needed
+        } catch (BadResponseException $e) {
+            if ($e->hasResponse()) {
+                $r = $e->getResponse();
+                $error = "Could not {$command} ({$r->getStatusCode()}): {$r->getBody()}";
+            } else {
+                $error = "Could not {$command}.";
+            }
+            $error .= 'Please inform the administrator and try again later.';
+            Yii::log(
+                (
+                    "LSTNP: Failed to do telegram command {$command}:\n"
+                    ."{$error}\n"
+                    ."{$e->getTraceAsString()}"
+                ),
+                CLogger::LEVEL_ERROR
+            );
+            throw new \Exception('LSTNP: ' . $error);
+        } catch (\Exception $e) {
+            // Display a user-friendly message
+            $error = 'An unexpected error occurred. Please inform the administrator and try again later.';
+            Yii::log(
+                (
+                    "LSTNP: Failed to do telegram command {$command} with unexpected exception type:\n"
+                    ."{$error}\n"
+                    ."{$e->getTraceAsString()}"
+                ),
+                CLogger::LEVEL_ERROR
+            );
+            throw new \Exception('LSTNP: ' . $error);
+        }
         return json_decode($response->getBody(), true);
     }
 
