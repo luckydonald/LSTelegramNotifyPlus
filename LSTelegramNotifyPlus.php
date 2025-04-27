@@ -127,6 +127,11 @@ class LSTelegramNotifyPlus extends PluginBase
             'type' => 'checkbox',
             'label' => 'Check to send all attachments uploaded',
         ],
+        'DieWithErrors' => [
+            'type' => 'checkbox',
+            'label' => 'In case of errors with telegram, abort and print the error. (For installing to check everything is working. Otherwise errors will probably go on unnoticed.)',
+            'default' => true,
+        ],
     ];
 
     public function __construct(LimeSurvey\PluginManager\PluginManager $manager, $id)
@@ -207,8 +212,13 @@ class LSTelegramNotifyPlus extends PluginBase
             [
                 'parse_mode' => $parseMode,
                 'text' => $text,
-            ]
+            ],
+            [],
+            $this->getSurveySettings('DieWithErrors', $surveyId)
         );
+        if (!$tgResponse) {
+            return null;
+        }
         $reply = $this->getSurveySettings('Reply', $surveyId);
         if (!$reply) {
             // if reply is disabled, simply don't provide that information.
@@ -216,13 +226,15 @@ class LSTelegramNotifyPlus extends PluginBase
         }
         return $tgResponse['result']['message_id'];
     }
+
     private function sendTelegram(
         $client,
         $chatId,
         $replyToMessageId,
         $command="sendMessage",
         $params=[],
-        $attachments=[]
+        $attachments=[],
+        bool $dieWithErrors = true
     ) {
         $buildParams = [
             'chat_id' => $chatId,
@@ -295,7 +307,11 @@ class LSTelegramNotifyPlus extends PluginBase
                 ),
                 CLogger::LEVEL_ERROR
             );
-            throw new \Exception('LSTNP: ' . $error);
+            if ($dieWithErrors) {
+                throw new \Exception('LSTNP: ' . $error);
+            } else {
+                return;
+            }
         } catch (\Exception $e) {
             // Display a user-friendly message
             $error = 'An unexpected error occurred. Please inform the administrator and try again later.';
@@ -307,7 +323,11 @@ class LSTelegramNotifyPlus extends PluginBase
                 ),
                 CLogger::LEVEL_ERROR
             );
-            throw new \Exception('LSTNP: ' . $error);
+            if ($dieWithErrors) {
+                throw new \Exception('LSTNP: ' . $error);
+            } else {
+                return;
+            }
         }
         return json_decode($response->getBody(), true);
     }
@@ -327,7 +347,8 @@ class LSTelegramNotifyPlus extends PluginBase
             [],
             [
                 'document' => [$pdfPath, "$surveyId-$responseId.pdf"]
-            ]
+            ],
+            $this->getSurveySettings('DieWithErrors', $surveyId)
         );
         unlink($pdfPath);
     }
@@ -347,7 +368,8 @@ class LSTelegramNotifyPlus extends PluginBase
             [],
             [
                 'document' => [$pdfPath, "$surveyId-$responseId.csv"]
-            ]
+            ],
+            $this->getSurveySettings('DieWithErrors', $surveyId)
         );
         unlink($pdfPath);
     }
@@ -411,7 +433,8 @@ class LSTelegramNotifyPlus extends PluginBase
                 [
                     'media' => json_encode($upTo10Datas),
                 ],
-                $upTo10Files
+                $upTo10Files,
+                $this->getSurveySettings('DieWithErrors', $surveyId)
             );
         }
     }
@@ -455,6 +478,7 @@ class LSTelegramNotifyPlus extends PluginBase
             'SendPdf' => $this->getSurveySettings('SendPdf', $surveyId, $this->settings['SendPdf']['default']),
             'SendCsv' => $this->getSurveySettings('SendCsv', $surveyId, $this->settings['SendCsv']['default']),
             'SendAttachments' => $this->getSurveySettings('SendAttachments', $surveyId, $this->settings['SendAttachments']['default']),
+            'DieWithErrors' => $this->getSurveySettings('DieWithErrors', $surveyId, $this->settings['DieWithErrors']['default']),
         ];
 
         $settings = [];
