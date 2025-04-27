@@ -543,12 +543,11 @@ class LSTelegramNotifyPlus extends PluginBase
                 $replacements[$key] = htmlspecialchars($value, ENT_QUOTES);
             }
         }
-        $text = preg_replace(
+        return preg_replace(
             array_keys($replacements),
             array_values($replacements),
             $defaultText
         );
-        return $text;
     }
 
     /**
@@ -585,11 +584,10 @@ class LSTelegramNotifyPlus extends PluginBase
             ),
             "/\n/" => "<br/>\n",
         ];
-        $return = preg_replace(
+        return preg_replace(
             array_keys($replacements),
             array_values($replacements),
             $template
         );
-        return $return;
     }
 }
